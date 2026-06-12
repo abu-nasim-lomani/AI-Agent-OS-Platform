@@ -40,8 +40,43 @@ export class DatabaseService implements OnModuleDestroy {
     }
   }
 
-  // TODO(S0-05): withoutTenant() — শুধু auth bootstrap path-এর জন্য
-  // (user lookup, org create) — আলাদা সীমিত-grant role দিয়ে, কখনো BYPASSRLS নয়।
+  /**
+   * Auth bootstrap path (S0-05) — tenant context-হীন transaction।
+   * শুধু users lookup/create ও bootstrap_organization() call-এর জন্য
+   * (দুটোই RLS-এর বাইরে নয় — users un-scoped, bootstrap fn নিজের context set করে)।
+   * Business data এই পথে query করা নিষেধ — RLS fail-closed: শূন্য row পাবেন।
+   */
+  async authTx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * User-context transaction (S0-05) — login-এ নিজের membership পড়ার জন্য
+   * (memberships-এর self_membership policy, db/migrations/0002)।
+   */
+  async withUser<T>(
+    userId: string,
+    fn: (client: PoolClient) => Promise<T>,
+  ): Promise<T> {
+    return this.authTx(async (client) => {
+      await client.query(
+        "SELECT set_config('app.current_user_id', $1, true)",
+        [userId],
+      );
+      return fn(client);
+    });
+  }
 
   onModuleDestroy() {
     return this.pool.end();
