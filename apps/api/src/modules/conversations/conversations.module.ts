@@ -1,12 +1,18 @@
 import { Module } from '@nestjs/common';
+import { TenancyModule } from '../tenancy/tenancy.module';
+import { ConversationsController } from './conversations.controller';
+import { ConversationsService } from './conversations.service';
 
 /**
  * Conversations — sessions, messages, unknown-question log (docs/04 §6–7, docs/09 F8)।
+ * S0-08: ask path (playground) + unknown list।
  *
- * TODO(S0-08):
- *  - POST /v1/agents/:id/ask → AI Service /v1/answer call → message persist
- *  - UNKNOWN হলে unknown_questions-এ insert (Learning Loop-এর বীজ — F8.3)
- *  - playground channel analytics/billing-এ গণনা নয় (F5.3)
+ * TODO(পরের sprint): transcript view (F8.1), one-click FAQ answer (F8.3),
+ *   daily digest (F8.4), channel conversations (widget/messenger)
  */
-@Module({})
+@Module({
+  imports: [TenancyModule],
+  controllers: [ConversationsController],
+  providers: [ConversationsService],
+})
 export class ConversationsModule {}
