@@ -13,6 +13,8 @@ dependencies = [
     "boto3>=1.35",
     "pypdf>=5.1",        # S0-07 basic parsing; layout-aware parser পরের sprint (F3.2)
     "httpx>=0.28",
+    "pgvector>=0.3",     # asyncpg codec + Vector type (S0-07)
+    "bullmq>=2.10",      # Core API-র BullMQ queue-র Python consumer (S0-07)
 ]
 
 [dependency-groups]

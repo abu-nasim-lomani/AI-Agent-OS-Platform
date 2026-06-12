@@ -80,8 +80,28 @@ async def complete(
 
 
 async def embed(texts: list[str]) -> list[list[float]]:
-    """Embedding — dimension অবশ্যই db/migrations/0001-এর vector(1024)-এর সমান।
-    TODO(S0-07): embedding provider বাছাই (Bangla retrieval benchmark — docs/08 §2)
-    এবং model version knowledge-version-এ pin (F4.4)।
+    """Embedding (S0-07) — Voyage API; dimension = db/migrations/0001-এর vector(1024)।
+
+    Provider বাছাই Bangla retrieval benchmark-সাপেক্ষে পরিবর্তনযোগ্য (docs/08 §2) —
+    কিন্তু model বদল মানে full re-index; version knowledge-version-এ pinned (F4.4)।
     """
-    raise NotImplementedError("S0-07")
+    import httpx  # local import — answer path-এ load খরচ নয়
+
+    from app.config import settings
+
+    if not settings.voyage_api_key:
+        raise RuntimeError("VOYAGE_API_KEY missing — embeddings unavailable")
+
+    async with httpx.AsyncClient(timeout=60) as http:
+        resp = await http.post(
+            "https://api.voyageai.com/v1/embeddings",
+            headers={"Authorization": f"Bearer {settings.voyage_api_key}"},
+            json={
+                "model": settings.embedding_model,
+                "input": texts,
+                "output_dimension": settings.embedding_dim,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()["data"]
+    return [item["embedding"] for item in sorted(data, key=lambda d: d["index"])]
