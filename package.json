@@ -1,0 +1,17 @@
+{
+  "name": "agentos",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @agentos/api --filter @agentos/web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "db:migrate": "node db/migrate.mjs"
+  },
+  "devDependencies": {
+    "pg": "^8.13.1",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,5 @@
+# Cross-platform টিম (Windows + Linux CI) — repo-তে সবসময় LF
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary

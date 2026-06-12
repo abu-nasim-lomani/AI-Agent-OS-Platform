@@ -1,0 +1,30 @@
+# deps
+node_modules/
+.pnpm-store/
+__pycache__/
+.venv/
+*.egg-info/
+
+# builds
+dist/
+.next/
+build/
+coverage/
+
+# env & secrets — কখনো commit নয়
+.env
+.env.*
+!.env.example
+
+# local data
+.data/
+*.log
+
+# local tooling config
+.claude/
+
+# editor/os
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

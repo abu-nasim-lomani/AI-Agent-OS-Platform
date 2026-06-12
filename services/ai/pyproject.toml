@@ -1,0 +1,27 @@
+[project]
+name = "agentos-ai"
+version = "0.0.1"
+description = "AgentOS AI Service — RAG engine, LLM gateway, ingestion (docs/02 §2)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.6",
+    "anthropic>=0.45",
+    "asyncpg>=0.30",
+    "boto3>=1.35",
+    "pypdf>=5.1",        # S0-07 basic parsing; layout-aware parser পরের sprint (F3.2)
+    "httpx>=0.28",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.8"]
+
+[tool.ruff.lint]
+# TODO(S0-17 / A6): gateway-bypass rule — app.gateway-র বাইরে provider SDK import নিষেধ
+# বাস্তবায়ন: flake8-tidy-imports banned-api বা custom ruff rule
+select = ["E", "F", "I", "TID"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"anthropic".msg = "Provider SDK সরাসরি নয় — app.gateway.llm_gateway ব্যবহার করুন (docs/13 A6)"
