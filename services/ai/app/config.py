@@ -20,9 +20,12 @@ class Settings(BaseSettings):
     embedding_dim: int = 1024
 
     # LLM gateway — provider config দিয়ে নির্বাচিত (model-agnostic, docs/05 §3)
-    llm_provider: str = "openai"  # openai | anthropic
+    llm_provider: str = "gemini"  # gemini | openai | groq | ollama | anthropic
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+    gemini_api_key: str = ""
+    groq_api_key: str = ""
+    ollama_api_key: str = ""  # local — dummy চলে
 
 
 settings = Settings()

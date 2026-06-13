@@ -36,9 +36,12 @@ class AnswerResponse(BaseModel):
 # স্থির prefix — cache_control এর আওতায় (docs/10 §1); পরিবর্তনশীল কিছু এখানে নয়!
 # TODO(S0-08): persona_config থেকে tone/language যোগ — সেগুলোও per-agent স্থির, prefix-এ থাকবে
 SYSTEM_PROMPT = """\
-You are a customer support agent. Answer ONLY from the provided context.
-If the context does not contain the answer, reply exactly: UNKNOWN
-Match the user's language (Bangla / English / Banglish). Be concise and polite.
+You are a customer support agent. Answer the user's question using ONLY the facts
+in the provided context. Give the actual answer (e.g. the price, the charge, the
+policy) — never reply with just a language name or a label.
+Write your reply in the same language the user wrote in.
+If the context does not contain the answer, reply with exactly this token: UNKNOWN
+Be concise and polite.
 """
 
 

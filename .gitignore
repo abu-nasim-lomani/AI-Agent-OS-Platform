@@ -39,3 +39,4 @@ services/ai/.wk.*.log
 services/ai/.ai.pid
 services/ai/.wk.pid
 test-fixtures/*.pdf
+apps/web/next-env.d.ts

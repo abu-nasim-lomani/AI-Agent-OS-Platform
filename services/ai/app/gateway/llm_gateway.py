@@ -26,6 +26,30 @@ PROFILE_MODEL_MAP: dict[str, dict[ModelProfile, str]] = {
         "standard": "gpt-4o",
         "premium": "gpt-4o",
     },
+    "gemini": {  # free tier — Bangla মান ভালো (docs/08 §2)
+        "economy": "gemini-2.0-flash",
+        "standard": "gemini-2.0-flash",
+        "premium": "gemini-1.5-pro",
+    },
+    "groq": {
+        "economy": "llama-3.1-8b-instant",
+        "standard": "llama-3.3-70b-versatile",
+        "premium": "llama-3.3-70b-versatile",
+    },
+    "ollama": {  # local, offline
+        "economy": "qwen2.5:3b",
+        "standard": "qwen2.5:7b",
+        "premium": "qwen2.5:7b",
+    },
+}
+
+# OpenAI-compatible provider → (base_url, settings-এর key attribute)।
+# anthropic আলাদা (ভিন্ন API shape) — নিচে _complete_anthropic-এ।
+OPENAI_COMPATIBLE: dict[str, tuple[str, str]] = {
+    "openai": ("https://api.openai.com/v1", "openai_api_key"),
+    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini_api_key"),
+    "groq": ("https://api.groq.com/openai/v1", "groq_api_key"),
+    "ollama": ("http://localhost:11434/v1", "ollama_api_key"),  # key dummy চলবে
 }
 
 
@@ -58,8 +82,12 @@ async def complete(
     model = PROFILE_MODEL_MAP[provider][profile]
     if provider == "anthropic":
         return await _complete_anthropic(model, system, user_content, max_tokens)
-    if provider == "openai":
-        return await _complete_openai(model, system, user_content, max_tokens)
+    if provider in OPENAI_COMPATIBLE:
+        base_url, key_attr = OPENAI_COMPATIBLE[provider]
+        return await _complete_openai_compatible(
+            provider, base_url, getattr(settings, key_attr, ""), model,
+            system, user_content, max_tokens,
+        )
     raise RuntimeError(f"unknown LLM_PROVIDER: {provider}")
     # TODO(S0-09): usage → Core API usage_ledger POST (kind="llm_reply")
     # TODO(S0-06): fallback chain (primary 5xx/timeout → secondary provider) + metric
@@ -90,16 +118,19 @@ async def _complete_anthropic(model, system, user_content, max_tokens) -> Comple
     )
 
 
-async def _complete_openai(model, system, user_content, max_tokens) -> Completion:
-    """OpenAI Chat Completions — httpx দিয়ে (SDK dependency নয়, embed()-এর মতোই)।"""
+async def _complete_openai_compatible(
+    provider, base_url, api_key, model, system, user_content, max_tokens
+) -> Completion:
+    """OpenAI-compatible Chat Completions (openai/gemini/groq/ollama) — httpx দিয়ে
+    (SDK dependency নয়, embed()-এর মতোই)। শুধু base_url + key বদলায়।"""
     import httpx
 
-    if not settings.openai_api_key:
-        raise RuntimeError("OPENAI_API_KEY missing")
+    if not api_key and provider != "ollama":  # ollama-তে key লাগে না
+        raise RuntimeError(f"{provider} API key missing")
     async with httpx.AsyncClient(timeout=60) as http:
         resp = await http.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+            f"{base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {api_key or 'ollama'}"},
             json={
                 "model": model,
                 "max_tokens": max_tokens,
@@ -116,11 +147,11 @@ async def _complete_openai(model, system, user_content, max_tokens) -> Completio
     return Completion(
         text=data["choices"][0]["message"]["content"],
         usage=Usage(
-            provider="openai",
+            provider=provider,
             model=model,
             input_tokens=usage.get("prompt_tokens", 0),
             output_tokens=usage.get("completion_tokens", 0),
-            cached_tokens=cached,
+            cached_tokens=cached or 0,
         ),
     )
 
