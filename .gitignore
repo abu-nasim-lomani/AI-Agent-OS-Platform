@@ -28,3 +28,7 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# local run artifacts
+apps/api/.run.*
+

@@ -22,6 +22,7 @@ $$;
 GRANT EXECUTE ON FUNCTION bootstrap_organization(text, uuid) TO agentos_app;
 
 -- Login: user নিজের membership দেখতে পারবে org context ছাড়াই —
--- দ্বিতীয় policy (policies OR হয়); app.current_user_id login path-এ set হয়
+-- দ্বিতীয় policy (permissive policies OR হয়); app.current_user_id login path-এ set হয়।
+-- NULLIF(..., '') — 0001-এর মতোই কারণ (touched GUC '' ফেরায়, ''::uuid crash)।
 CREATE POLICY self_membership ON memberships
-  USING (user_id = current_setting('app.current_user_id', true)::uuid);
+  USING (user_id = NULLIF(current_setting('app.current_user_id', true), '')::uuid);

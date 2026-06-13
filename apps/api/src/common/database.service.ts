@@ -13,8 +13,10 @@ import { Pool, PoolClient } from 'pg';
  */
 @Injectable()
 export class DatabaseService implements OnModuleDestroy {
+  // App সবসময় agentos_app (NOBYPASSRLS) — superuser DATABASE_URL নয়।
+  // Superuser RLS bypass করে, তাই app সেটা ব্যবহার করলে isolation নিষ্ক্রিয় হয় (docs/03 §2.2)।
   private readonly pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.APP_DATABASE_URL,
   });
 
   /** Tenant context-সহ একটি transaction চালায়। সব tenant-scoped কাজ এই পথে। */

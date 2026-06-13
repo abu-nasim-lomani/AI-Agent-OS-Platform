@@ -16,8 +16,9 @@ _pool: asyncpg.Pool | None = None
 async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
+        # app_database_url = agentos_app (NOBYPASSRLS); superuser নয় (docs/03 §2.2)
         _pool = await asyncpg.create_pool(
-            settings.database_url, min_size=1, max_size=10, init=register_vector
+            settings.app_database_url, min_size=1, max_size=10, init=register_vector
         )
     return _pool
 

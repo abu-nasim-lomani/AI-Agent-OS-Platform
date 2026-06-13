@@ -187,13 +187,14 @@ BEGIN
   ] LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
-    -- missing_ok=true: context unset হলে error নয় — NULL তুলনা = শূন্য row (fail-closed)
+    -- NULLIF(..., '') জরুরি: touched custom GUC current_setting(...,true)-এ NULL নয়,
+    -- empty string '' ফেরত দেয় (pooled conn); ''::uuid crash করত। '' → NULL → fail-closed।
     IF t = 'organizations' THEN
       EXECUTE format(
-        'CREATE POLICY tenant_isolation ON %I USING (id = current_setting(''app.current_org_id'', true)::uuid)', t);
+        'CREATE POLICY tenant_isolation ON %I USING (id = NULLIF(current_setting(''app.current_org_id'', true), '''')::uuid)', t);
     ELSE
       EXECUTE format(
-        'CREATE POLICY tenant_isolation ON %I USING (org_id = current_setting(''app.current_org_id'', true)::uuid)', t);
+        'CREATE POLICY tenant_isolation ON %I USING (org_id = NULLIF(current_setting(''app.current_org_id'', true), '''')::uuid)', t);
     END IF;
     EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON %I TO agentos_app', t);
   END LOOP;
