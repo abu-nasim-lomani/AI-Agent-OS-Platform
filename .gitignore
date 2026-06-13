@@ -32,3 +32,10 @@ coverage/
 # local run artifacts
 apps/api/.run.*
 
+
+# AI service local run artifacts + test fixture output
+services/ai/.ai.*.log
+services/ai/.wk.*.log
+services/ai/.ai.pid
+services/ai/.wk.pid
+test-fixtures/*.pdf

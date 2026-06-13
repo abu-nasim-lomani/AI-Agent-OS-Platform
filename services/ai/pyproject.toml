@@ -20,9 +20,12 @@ dependencies = [
 [dependency-groups]
 dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.8"]
 
+[tool.ruff]
+# Bangla comment + English term মিলে 88 সংকীর্ণ — codebase-এর প্রকৃত style 100
+line-length = 100
+
 [tool.ruff.lint]
-# TODO(S0-17 / A6): gateway-bypass rule — app.gateway-র বাইরে provider SDK import নিষেধ
-# বাস্তবায়ন: flake8-tidy-imports banned-api বা custom ruff rule
+# A6: gateway-bypass rule — app.gateway-র বাইরে provider SDK import নিষেধ (banned-api নিচে)
 select = ["E", "F", "I", "TID"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]

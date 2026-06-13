@@ -9,16 +9,23 @@
 from dataclasses import dataclass
 from typing import Literal
 
-import anthropic  # noqa: TID251 — gateway-ই একমাত্র বৈধ import-স্থান
+from app.config import settings
 
 ModelProfile = Literal["economy", "standard", "premium"]
 
-# মানচিত্রের মালিক: কোয়ার্টারলি eval benchmark (docs/11 §4) — হাতে বদলানো নিষেধ,
-# benchmark report-এর PR দিয়ে বদলাবে। Plan→profile gate: docs/10 §2।
-PROFILE_MODEL_MAP: dict[ModelProfile, str] = {
-    "economy": "claude-haiku-4-5",
-    "standard": "claude-sonnet-4-6",
-    "premium": "claude-opus-4-8",
+# profile → model মানচিত্র, provider-ভেদে। মালিক: কোয়ার্টারলি eval benchmark
+# (docs/11 §4) — হাতে নয়, benchmark PR দিয়ে। Plan→profile gate: docs/10 §2।
+PROFILE_MODEL_MAP: dict[str, dict[ModelProfile, str]] = {
+    "anthropic": {
+        "economy": "claude-haiku-4-5",
+        "standard": "claude-sonnet-4-6",
+        "premium": "claude-opus-4-8",
+    },
+    "openai": {
+        "economy": "gpt-4o-mini",
+        "standard": "gpt-4o",
+        "premium": "gpt-4o",
+    },
 }
 
 
@@ -37,9 +44,6 @@ class Completion:
     usage: Usage
 
 
-_client = anthropic.AsyncAnthropic()  # ANTHROPIC_API_KEY env থেকে
-
-
 async def complete(
     *,
     profile: ModelProfile,
@@ -47,20 +51,30 @@ async def complete(
     user_content: str,
     max_tokens: int = 1024,
 ) -> Completion:
-    """একটি উত্তর তৈরি করে। Caching নিয়ম (docs/10 §1): system = স্থির prefix,
-    cache_control-সহ; পরিবর্তনশীল সবকিছু (RAG context, প্রশ্ন) user turn-এ।
+    """একটি উত্তর তৈরি করে। Provider config দিয়ে নির্বাচিত (model-agnostic — docs/05 §3)।
+    Caching (docs/10 §1): system = স্থির prefix; পরিবর্তনশীল সব user turn-এ।
     """
-    model = PROFILE_MODEL_MAP[profile]
-    response = await _client.messages.create(
+    provider = settings.llm_provider
+    model = PROFILE_MODEL_MAP[provider][profile]
+    if provider == "anthropic":
+        return await _complete_anthropic(model, system, user_content, max_tokens)
+    if provider == "openai":
+        return await _complete_openai(model, system, user_content, max_tokens)
+    raise RuntimeError(f"unknown LLM_PROVIDER: {provider}")
+    # TODO(S0-09): usage → Core API usage_ledger POST (kind="llm_reply")
+    # TODO(S0-06): fallback chain (primary 5xx/timeout → secondary provider) + metric
+    # TODO(পরে): streaming, daily budget kill-switch check (docs/09 F10.3)
+
+
+async def _complete_anthropic(model, system, user_content, max_tokens) -> Completion:
+    # gateway-ই একমাত্র বৈধ import-স্থান; lazy (key না থাকলে import crash নয়)
+    import anthropic  # noqa: TID251
+
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+    response = await client.messages.create(
         model=model,
         max_tokens=max_tokens,
-        system=[
-            {
-                "type": "text",
-                "text": system,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
+        system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_content}],
     )
     text = next((b.text for b in response.content if b.type == "text"), "")
@@ -74,9 +88,41 @@ async def complete(
             cached_tokens=response.usage.cache_read_input_tokens or 0,
         ),
     )
-    # TODO(S0-06): usage → Core API usage_ledger POST (kind="llm_reply")
-    # TODO(S0-06): fallback chain (primary 5xx/timeout → secondary provider) + metric
-    # TODO(পরে): streaming, daily budget kill-switch check (docs/09 F10.3)
+
+
+async def _complete_openai(model, system, user_content, max_tokens) -> Completion:
+    """OpenAI Chat Completions — httpx দিয়ে (SDK dependency নয়, embed()-এর মতোই)।"""
+    import httpx
+
+    if not settings.openai_api_key:
+        raise RuntimeError("OPENAI_API_KEY missing")
+    async with httpx.AsyncClient(timeout=60) as http:
+        resp = await http.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+            json={
+                "model": model,
+                "max_tokens": max_tokens,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user_content},
+                ],
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    usage = data.get("usage", {})
+    cached = usage.get("prompt_tokens_details", {}).get("cached_tokens", 0)
+    return Completion(
+        text=data["choices"][0]["message"]["content"],
+        usage=Usage(
+            provider="openai",
+            model=model,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            cached_tokens=cached,
+        ),
+    )
 
 
 async def embed(texts: list[str]) -> list[list[float]]:

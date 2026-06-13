@@ -89,7 +89,7 @@ export class KnowledgeService implements OnModuleDestroy {
       'ingest',
       { orgId, agentId, sourceId: source.id },
       {
-        jobId: `ingest:${source.id}`, // idempotency key (docs/02 §4)
+        jobId: `ingest-${source.id}`, // idempotency key (docs/02 §4); BullMQ ':' নিষেধ করে
         attempts: 3,
         backoff: { type: 'exponential', delay: 5_000 },
         removeOnComplete: 100,

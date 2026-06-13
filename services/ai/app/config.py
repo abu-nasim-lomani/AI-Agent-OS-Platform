@@ -1,4 +1,4 @@
-"""Settings — env থেকে (pydantic-settings, case-insensitive)। .env.example-এর সাথে sync."""
+"""Settings — env থেকে (pydantic-settings)। .env.example-এর সাথে sync।"""
 
 from pydantic_settings import BaseSettings
 
@@ -19,7 +19,10 @@ class Settings(BaseSettings):
     embedding_model: str = "voyage-3-large"
     embedding_dim: int = 1024
 
-    anthropic_api_key: str = ""  # SDK নিজেই env থেকে নেয়; এখানে শুধু উপস্থিতি-যাচাইয়ের জন্য
+    # LLM gateway — provider config দিয়ে নির্বাচিত (model-agnostic, docs/05 §3)
+    llm_provider: str = "openai"  # openai | anthropic
+    anthropic_api_key: str = ""
+    openai_api_key: str = ""
 
 
 settings = Settings()
